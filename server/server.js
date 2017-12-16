@@ -10,11 +10,25 @@ var io = socketIO(server);
 var port = process.env.PORT || 9090;
 
 app.use(express.static(publicPath));
-
+// to establish the server connection --- server is up/down
 io.on('connection', (socket) =>{
   console.log('New user connected');
 
-  socket.on('disconnect', () =>{
+
+//message from Server to the client
+socket.emit('newMessage',{
+  from: 'manu',
+  text: "test",
+  createdAt: 'timestamp'
+});
+
+// to print the message
+socket.on('createMessage', (message) =>{
+console.log('new message', message);
+});
+
+// to establish the server connection --- server is up/down
+socket.on('disconnect', () =>{
     console.log('User disconnected from server');
   });
 });

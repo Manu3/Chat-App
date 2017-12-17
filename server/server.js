@@ -3,7 +3,7 @@ const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
 
-const {generateMessage} = require('./utils/message');
+const {generateMessage, generateLocationMessage} = require('./utils/message');
 const publicPath = path.join(__dirname,  '../public');
 var app = express();
 //we pass this server varialbe in app.listen to create server.
@@ -39,7 +39,11 @@ io.on('connection', (socket) =>{
 });
 
 
+// to emit and send location
 
+socket.on('createLocationMessage', (coords) => {
+io.emit('newLocationMessage', generateLocationMessage('Admin', coords.latitude, coords.longitude));
+});
 // to establish the server connection --- server is up/down
 socket.on('disconnect', () =>{
     console.log('User disconnected from server');

@@ -19,23 +19,36 @@ io.on('connection', (socket) =>{
   /*
     socket.emit is used to emit message to the user who sends the message to the chat.
   */
-
+  // socket.emit('newMessage',{
+  //   from: 'Admin',
+  //   text: 'Welcome to the chat app',
+  //   createdAt: new Date().getTime()
+  // });
 
   socket.emit('newMessage',generateMessage('Admin', 'Welcome to the chat app'));
 
   /*
     socket.broadcast.emit is used to emit message to all the users connected to the chat except to the sender.
   */
+  // socket.broadcast.emit('newMessage',{
+  //   from: 'Admin',
+  //   text: 'Manu has joined the chat room',
+  //   createdAt: new Date().getTime()
+  // });
 
   socket.broadcast.emit('newMessage',generateMessage('Admin', 'New user joined the chat app'));
   /*
     io.emit is used to emit message to all the users connected to the chat.
   */
-  socket.on('createMessage', (message, callback) =>{
+  socket.on('createMessage', (message) =>{
     console.log('New message', message);
+  //   io.emit('newMessage',{
+  //     from: message.from,
+  //     text: message.text,
+  //     createdAt: new Date().getTime()
+  // });
 
   io.emit('newMessage',generateMessage(message.from, message.text));
-  callback('this is from the server');
 });
 
 

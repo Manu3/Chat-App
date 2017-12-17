@@ -1,0 +1,5 @@
+socket.emit --- >>> emits message to single connection
+io.emit ----->>> emits message to every single connection
+
+
+socket.broadcast.emit --- >>>> the sender cannot see the message but everyone else can see the newMessage

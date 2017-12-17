@@ -14,17 +14,14 @@ app.use(express.static(publicPath));
 io.on('connection', (socket) =>{
   console.log('New user connected');
 
-
 //message from Server to the client
-socket.emit('newMessage',{
-  from: 'manu',
-  text: "test",
-  createdAt: 'timestamp'
-});
-
-// to print the message
 socket.on('createMessage', (message) =>{
-console.log('new message', message);
+  console.log('new message', message);
+  io.emit('newMessage',{
+    from: message.from,
+    text: message.text,
+    createdAt: new Date().getTime()
+  });
 });
 
 // to establish the server connection --- server is up/down

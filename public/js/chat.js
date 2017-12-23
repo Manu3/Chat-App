@@ -1,4 +1,4 @@
-
+var socket = io();
 function scrollContainerToBottom (){
   //selectors
   var messages = jQuery('#messages');
@@ -19,12 +19,35 @@ console.log('should scroll');
 
 // to establish the client connection --- client is up/down
 socket.on('connect', function() {
+  var params = jQuery.deparam(window.location.search);
   console.log('Connected to server');
+
+  socket.emit('join', params, function(err){
+    if(err){
+
+      window.location.href = '/';
+        alert('err');
+    }else{
+      console.log('no error');
+    }
+  });
 });
 // to establish the client connection --- client is up/down
 socket.on('disconnect', function() {
-  console.log('Disconnect from server');
+  console.log('Disconnected from server');
 });
+
+socket.on('updateUserList', function(users) {
+  var ol = jQuery('<ol></ol>');
+
+  users.forEach(function(user){
+    ol.append(jQuery('<li></li>').text(user));
+  });
+  jQuery('#users').html(ol);
+  console.log('New user list', users);
+});
+
+
 
 // to print the message
 socket.on('newMessage', function(message){
@@ -73,9 +96,8 @@ jQuery('#message-form').on('submit', function (e){
   var messageTextBox = jQuery('[name =  message]');
 // to emit the message from client
   socket.emit('createMessage', {
-    from: 'User',
     text : messageTextBox.val()
-  },function(data){
+  },function(){
     messageTextBox.val('')
   });
 });

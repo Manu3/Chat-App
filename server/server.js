@@ -1,100 +1,142 @@
-const path = require('path');
+const nodemailer = require('nodemailer');
+const _ = require('lodash');
 const express = require('express');
-const http = require('http');
-const socketIO = require('socket.io');
-const {isRealString} = require('./utils/validation');
-const {generateMessage, generateLocationMessage} = require('./utils/message');
-const {Users} = require('./utils/users');
-const publicPath = path.join(__dirname,  '../public');
+const bodyParser = require('body-parser');
+const {ObjectID} = require('mongodb');
+const path = require('path');
+const swal = require('sweetalert2');
+var {mongoose} = require('./db/mongoose');
+var {Users} = require('./models/users');
+var {cars} = require('./models/cars');
+var {myProfile} = require('./models/myProfile');
+
 var app = express();
-//we pass this server varialbe in app.listen to create server.
-var server = http.createServer(app);
-var io = socketIO(server);
+var port = process.env.PORT || 9090;
 
-var users = new Users();
+const MongoClient = require('mongodb').MongoClient;
 
-var port = process.env.PORT || 9091;
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+app.use(express.static(__dirname + '/public'));
+app.use(bodyParser.urlencoded({extended: true}));
+app.use(bodyParser.json());
 
-app.use(express.static(publicPath));
-// to establish the server connection --- server is up/down
-io.on('connection', (socket) =>{
-  console.log('New user connected');
-  /*
-    socket.emit is used to emit message to the user who joins the chat.
-    socket.emit('newMessage',generateMessage('Admin', 'Welcome to the chat app'));
-  */
-  /*
-    socket.broadcast.emit is used to emit message to all the users connected to the chat except to the sender.
-    socket.broadcast.emit('newMessage',generateMessage('Admin', 'New user joined the chat app'));
-  */
+/*
+function: GET/
+Purpose: to render the home page
+URL: /
+*/
+app.get('/home', function (req, res) {
+				res.render('landing',{
+	});
+});
 
+app.get('/cars', (req, res) => {
+    cars.find().then((cars) => {
+        res.send({
+            cars
+        });
+    }, (err) => {
+        res.status(400).send(err);
+    });
+});
 
-  /*
-    socket.on is used to read joining name and room of user who joins the chat.
-  */
+app.get('/myPortfolio', (req, res) => {
+    myProfile.find().then((myProfile) => {
+        res.send({
+            myProfile
+        });
+				 // console.log('myProfile',myProfile);
+    }, (err) => {
+        res.status(400).send(err);
+    });
 
+});
 
-  socket.on('join', (params, callback) => {
-   if (!isRealString(params.name) || !isRealString(params.room)) {
-     return callback('Name and room name are required.');
-   }
-   socket.join(params.room);
-   // to remove the user from other rooms and add to the new room
-   users.removeUser(socket.id);
-   users.addUser(socket.id, params.name, params.room);
-   io.to(params.room).emit('updateUserList', users.getUserList(params.room));
+/*
+function: POST/email
+Purpose: to send meesage from the anonymous user
+URL: /email
+*/
+app.post('/sendMessage', (req, res) => {
+  var body = _.pick(req.body, ['name', 'email', 'message']);
+  var transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+          user: 'chattel6@gmail.com',
+          pass: 'chattel1234'
+    }
+  });
+   //Setting up Email settings
+       var mailOptions = {
+           from: req.body.name,
+           to : 'chattel6@gmail.com',
+           subject:`from ${req.body.name}`,
+           html: `My email id is ${req.body.email}<p>${req.body.message}</p>`
 
-   //socket.leave('room name');
-   //io.emit -> io.to('room 1').emit
-   //socket.broadcast.emit -->> socket.broadcast.to('room name').emit
-   socket.emit('newMessage',generateMessage('Admin', 'Welcome to the chat app'));
-   socket.broadcast.to(params.room).emit('newMessage',generateMessage('Admin', `${params.name} joined the chat app`));
-   callback();
+       };
+
+  transporter.sendMail(mailOptions, function(error, info){
+    if (error) {
+      console.log(error);
+    } else {
+      console.log('Email sent: ' + info.response);
+       res.redirect('/home');
+			 swal({
+   title: "Good job!",
+   text: "You clicked the button!",
+   icon: "success",
  });
-  /*
-    io.emit is used to emit message to all the users connected to the chat.
-  */
-//   socket.on('createMessage', (message, callback) =>{
-//     console.log('New message', message);
-//     io.emit('newMessage',generateMessage(message.from, message.text));
-//   // var user = users.getUser(socket.id);
-//   // if(user && isRealString(message.text)){
-//   //     io.to(user.room).emit('newMessage',generateMessage(user.name, message.text));
-//   // }
-//
-//   callback('this is from the server');
-// });
-
-socket.on('createMessage', (message, callback) => {
-  var user = users.getUser(socket.id);
-
-  if (user && isRealString(message.text)) {
-    io.to(user.room).emit('newMessage', generateMessage(user.name, message.text));
-  }
-
-  callback();
-});
-// to emit and send location
-
-socket.on('createLocationMessage', (coords) => {
-var user = users.getUser(socket.id);
-if (user) {
-  io.to(user.room).emit('newLocationMessage', generateLocationMessage(user.name, coords.latitude, coords.longitude));
     }
-});
-// to establish the server connection --- server is up/down
-socket.on('disconnect', () =>{
-    console.log('User disconnected from server');
-
-    var user = users.removeUser(socket.id);
-    if(user){
-
-      io.to(user.room).emit('updateUserList', users.getUserList(user.room));
-      io.to(user.room).emit('newMessage', generateMessage('Admin', `${user.name} has left.`));
-    }
-
   });
 });
-server.listen(port, () => {
-  console.log(`app is running on port ${port}`);
+
+/*
+function: POST/signup
+Purpose: Allows user to signup and send the credentials to the email.
+URL: /signup
+*/
+
+app.post('/signup', (req, res) => {
+  var body = _.pick(req.body, ['name', 'email', 'password']);
+  var user = new Users(body);
+  user.save().then(() => {
+    user.generateAuthToken();
+    res.redirect('/home');
+		var transporter = nodemailer.createTransport({
+	    service: 'gmail',
+	    auth: {
+	          user: 'chattel6@gmail.com',
+	          pass: 'chattel1234'
+	    }
+	  });
+	   //Setting up Email settings
+	       var mailOptions = {
+	           from: 'chattel6@gmail.com',
+	           to : req.body.email,
+	           subject: 'Login credentials for Chatttel',
+	           html : `<h3>Hi ${req.body.name},</h3> Thanks for signing with us. Your login id is ${req.body.email} and password is ${req,body.password}<p>Please visit https://localhost:9090/home/ and enjoy rides.</p>`,
+	       };
+
+	  transporter.sendMail(mailOptions, function(error, info){
+	    if (error) {
+	      console.log(error);
+	    } else {
+	      console.log('Email sent: ' + info.response);
+	      res.redirect('/');
+	    }
+	  });
+    }).then((token) => {
+      res.header('x-auth', token).send(user);
+    }).catch((e) => {
+      // popup.alert({
+      //   content: 'User alredy registered'
+      // });
+      JSAlert.alert('User alredy registered');
+      res.status(400).send(e);
+    })
+});
+
+app.listen(port, () => {
+    console.log(`wow it started at port: ${port}`);
 });
